@@ -1,12 +1,10 @@
 # 2025-02-17
 # 사용자 입력 - go 200 형태
 # 컨베이어 벨트에 명령은 가짐
-# -------- 해야 할 것
-# 컨베이어 벨트 상태 받아오기
-# 명령 종류별로 다르게 움직이게
+# -------- 해야 할 것 ----------
+
 # 거리 미세 조정
-# 정지 명령 활성화
-# 멀티 스레드로 상태 받아오기
+# INIT, DISCONNECTED 구현
 
 import rclpy
 from rclpy.node import Node
@@ -14,6 +12,8 @@ import serial
 import time
 from messages.msg import Control
 from messages.msg import Status
+import threading
+from rclpy.executors import MultiThreadedExecutor
 
 # 1mm 당 스텝 수 (100mm -> 1040 step)
 STEP_PER_MM = 10.4
@@ -29,20 +29,11 @@ class conveyor(Node):
             10
         )
 
-        # 상태 발행
-        self.publisher = self.create_publisher(Status, '/status', 10)
-
-        # 상태
-        self.status = Status()
-
         # 시리얼 포트 초기화 (포트와 보드레이트는 환경에 맞게 수정)
         try:
             self.serial_port = serial.Serial('/dev/ttyACM0', 115200, timeout=1)
             time.sleep(2)  # 아두이노 부팅 대기 시간
             self.get_logger().info("Serial port opened successfully!")
-            # 연결 되면 READY로 초기화
-            self.status.status = 'READY'
-            self.publisher.publish(self.status)
 
         except Exception as e:
             self.get_logger().error(f"Failed to open serial port: {e}")
@@ -75,19 +66,86 @@ class conveyor(Node):
         else:
             print('wrong order')
 
+class conveyor_status(Node):
+    def __init__(self):
+        super().__init__('conveyor_states_node')
+
+        # 상태
+        self.status = Status()
+        self.flag = 'k'  # dis로 변환!!!!
+        self.status.status = 'DISCONNECTED'
+
+        self.pub = self.create_timer(0.5, self.sub_timer)
+
+        self.serial_port = serial.Serial('/dev/ttyACM0', 115200, timeout=1)
+        time.sleep(2)  # 아두이노 부팅 대기 시간
+        self.get_logger().info("Serial port opened successfully!")
+        if self.serial_port and self.serial_port.is_open:
+            bi = self.serial_port.read()
+            if self.flag != bi.decode():
+                self.flag = bi.decode()
+                if self.flag == 's':
+                    self.status.status = 'INIT'
+                elif self.flag == '.':
+                    self.status.status = 'READY'
+                elif self.flag == '_':
+                    self.status.status = 'RUN'
+
+                print('---------------')
+                print(self.status.status)
+
+
+    def sub_timer(self):
+            
+        # 시리얼 포트 초기화 (포트와 보드레이트는 환경에 맞게 수정)
+        try:
+            self.serial_port = serial.Serial('/dev/ttyACM0', 115200, timeout=1)
+            # time.sleep(2)  # 아두이노 부팅 대기 시간
+            # self.get_logger().info("Serial port opened successfully!")
+            
+            if self.serial_port and self.serial_port.is_open:
+                bi = self.serial_port.read()
+                if self.flag != bi.decode():
+
+                    self.flag = bi.decode()
+                    if self.flag == 's':
+                        self.status.status = 'INIT'
+                    elif self.flag == '.':
+                        self.status.status = 'READY'
+                    elif self.flag == '_':
+                        self.status.status = 'RUN'
+
+                    print('---------------')
+                    print(self.status.status)
+
+        except Exception as e:
+            self.get_logger().error(f"Failed to open serial port: {e}")
+            self.serial_port = None
+
+
 # 컨베이어 생태 받아오는 Node
 
 def main(args=None):
     rclpy.init(args=args)
-    node = conveyor()
+    node1 = conveyor()
+    node2 = conveyor_status()
+
+    executor = MultiThreadedExecutor()
+
+    executor.add_node(node1)
+    executor.add_node(node2)
+
+
     try:
-        rclpy.spin(node)
+        executor.spin()
     except KeyboardInterrupt:
         pass
     finally:
-        if node.serial_port and node.serial_port.is_open:
-            node.serial_port.close()
-        node.destroy_node()
+        if executor.serial_port and executor.serial_port.is_open:
+            executor.serial_port.close()
+        executor.shutdown()
+        node1.destroy_node()
+        node1.destroy_node()
         rclpy.shutdown()
 
 if __name__ == '__main__':
