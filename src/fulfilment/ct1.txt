@@ -1,0 +1,52 @@
+# 2025-02-17
+# 메시지 종류 다르게 해야 함
+# 컨베이어 벨트 동작시키는 동작 구현 필요!!!!
+
+import rclpy
+from rclpy.node import Node
+from messages.msg import Control
+from messages.msg import Status
+
+class conveyor(Node):
+    def __init__(self):
+        super().__init__('conveyor_node')
+        # 명령 수신 {"control":"go","distance.mm":200}
+        self.order_subscribe = self.create_subscription(Control, '/control', self.sub_callback, 10)
+        self.order_subscribe
+
+        # 상태 발행
+        self.status_publishe = self.create_publisher(Status, '/status', 10)
+
+    def sub_callback(self, data):
+        self.control = data.control
+        self.distance = data.distance   # distance 없는 명령이 들어올 경우 생각 필요!!!!!
+
+        message = Status()
+        
+
+        # 컨베이어 벨트 동작
+        if self.control == 'go':
+            message.status = 'RUN'
+            print('f')
+        elif self.control == 'stop':
+            message.status = 'RUN'
+            
+
+        print('------------------------------------')
+        print(f'order : {self.control}, distance : {self.distance}, status : {message.status}')
+
+        
+
+def main(args=None):
+    rclpy.init(args=args)
+    conveyor_node = conveyor()
+
+    try:
+        rclpy.spin(conveyor_node)
+    except:
+        pass
+    finally:
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()

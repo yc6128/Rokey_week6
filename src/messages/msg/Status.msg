@@ -1,0 +1,1 @@
+string status # 로봇 상태 INIT, READY, RUN, DISCONNECT
