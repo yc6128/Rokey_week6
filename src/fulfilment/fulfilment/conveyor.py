@@ -5,7 +5,7 @@
 # -------- 해야 할 것 ----------
 
 # 거리 미세 조정
-# INIT, DISCONNECTED 구현
+# DISCONNECTED 구현
 
 import rclpy
 from rclpy.node import Node
@@ -29,6 +29,8 @@ class conveyor(Node):
             self.listener_callback,
             10
         )
+
+
 
         # 시리얼 포트 초기화 (포트와 보드레이트는 환경에 맞게 수정)
         try:
@@ -71,6 +73,9 @@ class conveyor_status(Node):
     def __init__(self):
         super().__init__('conveyor_states_node')
 
+        # 상태 발행
+        self.status_publish = self.create_publisher(Status,'/status',10)
+
         # 상태
         self.status = Status()
         self.flag = 'k'  # dis로 변환!!!!
@@ -83,16 +88,10 @@ class conveyor_status(Node):
         self.get_logger().info("Serial port opened successfully!")
         if self.serial_port and self.serial_port.is_open:
             bi = self.serial_port.read()
-            if self.flag != bi.decode():
-                if self.flag == 's':
-                    self.status.status = 'INIT'
-                elif self.flag == '.':
-                    self.status.status = 'READY'
-                elif self.flag == '_':
-                    self.status.status = 'RUN'
-
+            if bi.decode() == 's':
                 print('********')
                 print(self.status.status)
+                self.status_publish.publish(self.status)
 
 
     def sub_timer(self):
@@ -117,6 +116,7 @@ class conveyor_status(Node):
 
                     print('---------------')
                     print(self.status.status)
+                    self.status_publish.publish(self.status)
 
         except Exception as e:
             self.get_logger().error(f"Failed to open serial port: {e}")
