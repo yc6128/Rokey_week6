@@ -32,9 +32,9 @@ class conveyor(Node):
             time.sleep(2)  # 아두이노 부팅 대기 시간
             self.get_logger().info("Serial port opened successfully!")
             if self.serial_port and self.serial_port.is_open:
-                a = self.serial_port.read()
+                self.current_status = self.serial_port.read()
                 print('------------')
-                print(a)
+                print(self.current_status)
 
         except Exception as e:
             self.get_logger().error(f"Failed to open serial port: {e}")
