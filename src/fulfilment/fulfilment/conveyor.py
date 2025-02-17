@@ -1,6 +1,7 @@
 # 2025-02-17
 # 사용자 입력 - go 200 형태
 # 컨베이어 벨트에 명령은 가짐
+
 # -------- 해야 할 것 ----------
 
 # 거리 미세 조정
@@ -73,7 +74,7 @@ class conveyor_status(Node):
         # 상태
         self.status = Status()
         self.flag = 'k'  # dis로 변환!!!!
-        self.status.status = 'DISCONNECTED'
+        self.status.status = 'INIT'
 
         self.pub = self.create_timer(0.5, self.sub_timer)
 
@@ -83,7 +84,6 @@ class conveyor_status(Node):
         if self.serial_port and self.serial_port.is_open:
             bi = self.serial_port.read()
             if self.flag != bi.decode():
-                self.flag = bi.decode()
                 if self.flag == 's':
                     self.status.status = 'INIT'
                 elif self.flag == '.':
@@ -91,7 +91,7 @@ class conveyor_status(Node):
                 elif self.flag == '_':
                     self.status.status = 'RUN'
 
-                print('---------------')
+                print('********')
                 print(self.status.status)
 
 
