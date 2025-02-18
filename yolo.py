@@ -5,7 +5,6 @@
 # yolo 동작
 
 # ---------해야 하는 거-----------
-# 박스위치 가져오기
 
 import rclpy
 from rclpy.node import Node
@@ -83,7 +82,12 @@ class Yolo(Node):
                 center_x = (box[2] - box[0])/2
                 center_y = (box[3] - box[1])/2
                 label_text = f'x : {center_x:.2f}, y : {center_y:.2f}'
-                cv2.putText(frame, label_text, (int(center_x+box[0]-100), int(center_y+box[1])),
+
+                font = cv2.FONT_HERSHEY_SIMPLEX
+
+                # 텍스트 바운더리 가져오기
+                textsize = cv2.getTextSize(label_text, font, 1, 2)[0]
+                cv2.putText(frame, label_text, (int(center_x+box[0]-textsize[0]/2), int(center_y + textsize[1]/2)),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 30]  # 90은 압축 품질
