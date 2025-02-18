@@ -83,7 +83,7 @@ class Yolo(Node):
                 center_x = (box[2] - box[0])/2
                 center_y = (box[3] - box[1])/2
                 label_text = f'x : {center_x:.2f}, y : {center_y:.2f}'
-                cv2.putText(frame, label_text, (int(center_x), int(center_y)),
+                cv2.putText(frame, label_text, (int(center_x+box[0]-100), int(center_y+box[1])),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 30]  # 90은 압축 품질
