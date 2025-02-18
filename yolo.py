@@ -2,10 +2,10 @@
 # usb 카메라로 비디오 받아서 
 # undistort
 # CompressedImage로 발행
+# yolo 동작
 
 # ---------해야 하는 거-----------
-# 카메라 영상 보내주는 노드 새로 만들기
-# 영상 받아오는걸로 수정
+# 박스위치 가져오기
 
 import rclpy
 from rclpy.node import Node
@@ -13,6 +13,7 @@ from sensor_msgs.msg import Image, CompressedImage
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
+from ultralytics import YOLO
 
 class Yolo(Node):
     def __init__(self):
@@ -34,18 +35,9 @@ class Yolo(Node):
         # OpenCV와 ROS 간 변환을 위한 CvBridge 초기화
         self.bridge = CvBridge()
 
-        # 주기적인 이미지 전송을 위한 타이머 설정 (주기: 1초)
-        # self.timer = self.create_timer(0.1, self.publish_image)
-
-        # # OpenCV 비디오 캡처 객체 생성 (카메라 0번 장치 사용)
-        # self.cap = cv2.VideoCapture(2, cv2.CAP_V4L2)
-        # # self.cap = cv2.VideoCapture(2)
-        # # self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        # # self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-        # self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
-        # self.cap.set(cv2.CAP_PROP_FPS, 5)
-        # self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-        # self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        # yolo pt file
+        # self.model = YOLO('/home/rokey2/bag_c/test_ws/best_aml.pt')
+        self.model = YOLO('yolov8s.pt')
 
         # 이미 얻어진 distortion, 비틀어짐 계산 결과값
 
@@ -82,21 +74,17 @@ class Yolo(Node):
         # undistort
         _, frame = self.get_calibrated_image(image_np, self.mtx, self.dist)
 
-        # # OpenCV 이미지 (BGR)을 JPEG로 압축
-        # encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]  # 90은 압축 품질
-        # _, compressed_image = cv2.imencode('.jpg', frame, encode_param)
+        results = self.model(frame)
 
-        # # 압축된 이미지를 CompressedImage 메시지로 변환
-        # msg = CompressedImage()
-        # msg.header.stamp = self.get_clock().now().to_msg()  # 타임스탬프 추가
-        # msg.header.frame_id = "camera"  # 프레임 ID 설정
-        # msg.format = "jpeg"  # 압축 형식 설정
-        # msg.data = compressed_image.tobytes()  # 압축된 이미지 데이터
-
-        # # CompressedImage 퍼블리시
-        # self.publisher_.publish(msg)
-
-
+        for result in results:
+            frame = result.plot()
+            print('-----------------')
+            for box in result.boxes.xyxy:
+                center_x = (box[2] - box[0])/2
+                center_y = (box[3] - box[1])/2
+                label_text = f'x : {center_x:.2f}, y : {center_y:.2f}'
+                cv2.putText(frame, label_text, (int(center_x), int(center_y)),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 30]  # 90은 압축 품질
         _, compressed_image_low = cv2.imencode('.jpg', cv2.resize(frame,(640,360)), encode_param)
