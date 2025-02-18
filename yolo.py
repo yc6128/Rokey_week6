@@ -3,8 +3,13 @@
 # undistort
 # CompressedImage로 발행
 # yolo 동작
+# 사분면 표시
+# m -> pixel 변환
 
 # ---------해야 하는 거-----------
+# topice 발행
+# !!! cls사용해서 aruco는 발행하지 않도록
+# NMS 적용
 
 import rclpy
 from rclpy.node import Node
@@ -13,14 +18,20 @@ from cv_bridge import CvBridge
 import cv2
 import numpy as np
 from ultralytics import YOLO
+from std_msgs.msg import String
 
 class Yolo(Node):
     def __init__(self):
         super().__init__('yolo')
-        
+        # m/pixel = 0.1668e-03
+        self.m_to_pixel = 0.0001668
+
         # 이미지 퍼블리셔 생성
         # self.publisher_ = self.create_publisher(CompressedImage, 'image_raw/compressed', 10)
         self.publisher_low_ = self.create_publisher(CompressedImage, 'image_raw/compressed_low', 10)
+
+        # info 퍼블리셔 생성
+        self.publisher_info = self.create_publisher(String,'yolo/detected_info', 10)
 
         # 이미지 서브스크라이버 생성
         self.subscription_rgb = self.create_subscription(
@@ -35,8 +46,8 @@ class Yolo(Node):
         self.bridge = CvBridge()
 
         # yolo pt file
-        # self.model = YOLO('/home/rokey2/bag_c/test_ws/best_aml.pt')
-        self.model = YOLO('yolov8s.pt')
+        # self.mode = YOLO('yolov8s.pt)
+        self.model = YOLO('/home/oh/project/drive3/yolov8s_trained.pt')
 
         # 이미 얻어진 distortion, 비틀어짐 계산 결과값
 
@@ -77,17 +88,38 @@ class Yolo(Node):
 
         for result in results:
             frame = result.plot()
-            print('-----------------')
-            for box in result.boxes.xyxy:
-                center_x = (box[2] - box[0])/2
-                center_y = (box[3] - box[1])/2
-                label_text = f'x : {center_x:.2f}, y : {center_y:.2f}'
+            for i in range(len(result.boxes.cls)):
+                box = result.boxes.xyxy[i]
+                center_x = (box[2] + box[0])/2
+                center_y = (box[3] + box[1])/2
+                
+                center_x_m = (center_x - 640) * self.m_to_pixel
+                center_y_m = (center_y - 360) * self.m_to_pixel
+
+                classid = result.boxes.cls[i]
+
+                if center_x_m < 0:
+                    if center_y_m < 0:
+                        quarter = '0'
+                    else:
+                        quarter = '2'
+                else:
+                    if center_y_m < 0:
+                        quarter = '1'
+                    else:
+                        quarter = '3'
+
+                print('------')
+                print(f'classid : {classid}')
+                print(f'사분면 :{quarter}')
+
+                label_text = f'{center_x_m*1000:.2f}, {center_y_m*1000:.2f}'
 
                 font = cv2.FONT_HERSHEY_SIMPLEX
 
                 # 텍스트 바운더리 가져오기
                 textsize = cv2.getTextSize(label_text, font, 1, 2)[0]
-                cv2.putText(frame, label_text, (int(center_x+box[0]-textsize[0]/2), int(center_y + textsize[1]/2)),
+                cv2.putText(frame, label_text, (int(center_x-textsize[0]/2), int(center_y+textsize[1]/2)),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 30]  # 90은 압축 품질
