@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QLabel, QPushButton, QTextEdit, QGroupBox, QRadioButton,
     QDoubleSpinBox, QButtonGroup
 )
-from PySide6.QtGui import QPixmap, QImage
+from PySide6.QtGui import QPixmap, QImage, QPainter, QPen, QColor
 
 # ROS 메시지
 from sensor_msgs.msg import CompressedImage
@@ -74,7 +74,6 @@ class GuiNode(Node, QObject):
 
         # 3) 발행
         self.control_pub = self.create_publisher(String, 'conveyor/control', 10)
-
         self.order_pub = self.create_publisher(String, 'gui/command', 10)
 
         # 모터 속도 추정 (예: 52.35 mm/s)
@@ -92,7 +91,6 @@ class GuiNode(Node, QObject):
                 return
 
             # BGR -> QImage
-            
             height, width, channel = cv_img.shape
             bytes_per_line = channel * width
             qimg = QImage(cv_img.data, width, height, bytes_per_line, QImage.Format_BGR888)
@@ -188,7 +186,7 @@ class MainWindow(QMainWindow):
         btn_layout.addWidget(self.stop_btn)
         main_layout.addLayout(btn_layout)
 
-        # ) 사용자 명령 목록 버튼
+        # 6) 사용자 명령 목록 버튼
         job_layout = QHBoxLayout()
         self.job1 = QPushButton("job1")
         self.job2 = QPushButton("job2")
@@ -203,8 +201,7 @@ class MainWindow(QMainWindow):
         job_layout.addWidget(self.job3)
         main_layout.addLayout(job_layout)
 
-
-        # 6) 상태창 (로그)
+        # 7) 상태창 (로그)
         self.status_text = QTextEdit()
         self.status_text.setReadOnly(True)
         main_layout.addWidget(self.status_text)
@@ -226,7 +223,6 @@ class MainWindow(QMainWindow):
 
         self.resize(600, 600)
 
-
     # ---------------------------------------------------
     # 사용자 바구니 명령
     # ---------------------------------------------------
@@ -242,15 +238,38 @@ class MainWindow(QMainWindow):
         cmd = {'red':1,'blue':0,'goal':3}
         self.node.publish_order(cmd)
 
-
     # ---------------------------------------------------
-    # 카메라 영상 업데이트
+    # 카메라 영상 업데이트 (십자가 표시 추가)
     # ---------------------------------------------------
     def update_image(self, qimg: QImage):
+        # QPixmap 변환
         pixmap = QPixmap.fromImage(qimg)
-        self.image_label.setPixmap(
-            pixmap.scaled(self.image_label.width(), self.image_label.height(), Qt.KeepAspectRatio)
+
+        # 라벨 크기에 맞춰 영상 스케일링
+        scaled_pixmap = pixmap.scaled(
+            self.image_label.width(),
+            self.image_label.height(),
+            Qt.KeepAspectRatio
         )
+
+        # 스케일링된 픽스맵에 노란색 십자가 그리기
+        painter = QPainter(scaled_pixmap)
+        painter.setPen(QPen(QColor("yellow"), 2, Qt.SolidLine))
+
+        w = scaled_pixmap.width()
+        h = scaled_pixmap.height()
+        cx = w // 2
+        cy = h // 2
+
+        # 수직선 (위->아래)
+        painter.drawLine(cx, 0, cx, h)
+        # 수평선 (왼->오른쪽)
+        painter.drawLine(0, cy, w, cy)
+
+        painter.end()
+
+        # 최종 픽스맵 표시
+        self.image_label.setPixmap(scaled_pixmap)
 
     # ---------------------------------------------------
     # 컨베이어 상태 업데이트
@@ -286,6 +305,7 @@ class MainWindow(QMainWindow):
             self.current_mode = None
             self.requested_distance = 0.0
             self.requested_time = 0.0
+
         elif status_str == "DISCONNECT":
             self.start_btn.setEnabled(False)
             self.stop_btn.setEnabled(False)
