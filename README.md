@@ -1,7 +1,8 @@
 # ODK Fulfillment
 
-AI 기반 카메라 비전과 로봇 기술을 활용하여 물류 전 과정을 자동화하는 풀필먼트 서비스 기업입니다.
+AI 기반 카메라 비전과 로봇 기술을 활용하여 물류 전 과정을 자동화하는 풀필먼트 서비스 기업입니다./n
 디지털 트윈으로 가상 자동화 서비스를 제공합니다.
+
 ![Image](https://github.com/user-attachments/assets/15d31e29-2b7d-49b7-ba27-bfa93c6083e5)
 ![Image](https://github.com/user-attachments/assets/e7d82425-2dd2-4132-a8d7-8bb5bdd41e2d)
 ![Image](https://github.com/user-attachments/assets/9824dc11-3802-4e29-b360-60c93dd619dd)
